@@ -49,7 +49,7 @@ public class ParasoftRecorder {
 		this.RECORDER_BASE_URL = "http://" + recorderHost + ":" + recorderPort;
 	}
 
-	// use with local Recorder Proxy & SOAtest Desktop default ports
+	// use with localhost default ports execution
 	public ParasoftRecorder() {
 		this("localhost", "9080", "localhost", "40090");
 	}
@@ -73,14 +73,15 @@ public class ParasoftRecorder {
 			log.error("recording session has a problem, id or proxy port is empty - returning normal ChromeDriver");
 			driver = new ChromeDriver(opts);
 		} else {
-			// initialize the proxy with the proxy port returned by the Parasoft Recorder API
+			// initialize the proxy with the proxy port returned by the Parasoft Recorder
+			// API
 			Proxy proxy = new Proxy();
-			proxy.setHttpProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy http connections
-			proxy.setSslProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy https connections
-			proxy.setNoProxy("<-loopback>"); // override proxying localhost connections
-			
+			proxy.setHttpProxy(RECORDER_HOST + ":" + recordingProxyPort);
+			proxy.setSslProxy(RECORDER_HOST + ":" + recordingProxyPort);
+
 			// tell Selenium to set the UI to use the Proxy
-			opts.setProxy(proxy);
+			opts.setCapability("proxy", proxy);
+
 			driver = new ChromeDriver(opts);
 		}
 

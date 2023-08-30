@@ -23,7 +23,7 @@ public class EndToEndTest_WithRecorder {
 	 * command line or use System.setProperty("BASE_URL", "http://localhost:8080")
 	 * to change base URL at run time.
 	 */
-	private static final String BASE_URL = "http://localhost:8092";
+	private static final String BASE_URL = "http://qa1.parasoft.com:8092";
 	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v116)\\chromedriver.exe";
 
 	private ParasoftRecorder recorder;
@@ -109,7 +109,7 @@ public class EndToEndTest_WithRecorder {
 		OrdersPage ordersPage = new OrdersPage(driver);
 		ordersPage.clickOrderLink();
 
-		Thread.sleep(5000);
+		Thread.sleep(10000);
 		ordersPage.clickCloseButton();
 		ordersPage.clickUsernameButton();
 		ordersPage.clickSignOutLink();
