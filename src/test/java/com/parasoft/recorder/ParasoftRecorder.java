@@ -73,14 +73,14 @@ public class ParasoftRecorder {
 			log.error("recording session has a problem, id or proxy port is empty - returning normal ChromeDriver");
 			driver = new ChromeDriver(opts);
 		} else {
-			// initialize the proxy with the proxy port returned by the Parasoft Recorder
-			// API
+			// initialize the proxy with the proxy port returned by the Parasoft Recorder API
 			Proxy proxy = new Proxy();
-			proxy.setHttpProxy(RECORDER_HOST + ":" + recordingProxyPort);
-			proxy.setSslProxy(RECORDER_HOST + ":" + recordingProxyPort);
-
+			proxy.setHttpProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy http connections
+			proxy.setSslProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy https connections
+			proxy.setNoProxy("<-loopback>"); // override proxying localhost connections
+			
 			// tell Selenium to set the UI to use the Proxy
-			opts.setCapability("proxy", proxy);
+			opts.setProxy(proxy);
 
 			driver = new ChromeDriver(opts);
 		}
