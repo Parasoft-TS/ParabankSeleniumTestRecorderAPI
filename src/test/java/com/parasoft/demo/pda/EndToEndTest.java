@@ -103,7 +103,7 @@ public class EndToEndTest {
 		OrdersPage ordersPage = new OrdersPage(driver);
 		ordersPage.clickOrderLink();
 
-		Thread.sleep(10000);
+		Thread.sleep(5000);
 		ordersPage.clickCloseButton();
 		ordersPage.clickUsernameButton();
 		ordersPage.clickSignOutLink();
