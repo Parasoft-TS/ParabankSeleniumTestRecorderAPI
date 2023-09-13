@@ -1,5 +1,5 @@
 # PDA-Selenium-RecorderAPI-Example
-This is an example project that demonstrates how to integrate a Selenium project with the Parasoft Recorder REST API.
+This is an example project that demonstrates how to integrate a Selenium project with the Parasoft Recorder REST API.  If you are using another UI testing framework, use this project as a reference for how an integration would be built.
 
 The web application this project is testing is the Parasoft Demo App.
 - https://github.com/parasoft/parasoft-demo-app
