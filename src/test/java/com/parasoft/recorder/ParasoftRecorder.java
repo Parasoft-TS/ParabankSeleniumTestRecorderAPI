@@ -54,9 +54,7 @@ public class ParasoftRecorder {
 		this("localhost", "9080", "localhost", "40090");
 	}
 
-	public WebDriver startRecordingAndSetupChromeDriver(ChromeOptions opts) {
-		WebDriver driver = null;
-
+	public ChromeOptions startRecording(ChromeOptions opts) {
 		// Start Recording Session
 		Boolean sessionsEmpty = isSessionsEmpty();
 		if (sessionsEmpty) {
@@ -67,27 +65,10 @@ public class ParasoftRecorder {
 		} else {
 			log.error("sessions were not empty, recording did not start");
 		}
-
-		// Setup Chrome Driver
-		if (this.recordingProxyPort.isEmpty() || this.recordingSessionId.isEmpty()) {
-			log.error("recording session has a problem, id or proxy port is empty - returning normal ChromeDriver");
-			driver = new ChromeDriver(opts);
-		} else {
-			// initialize the proxy with the proxy port returned by the Parasoft Recorder API
-			Proxy proxy = new Proxy();
-			proxy.setHttpProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy http connections
-			proxy.setSslProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy https connections
-			proxy.setNoProxy("<-loopback>"); // override proxying localhost connections
-			
-			// tell Selenium to set the UI to use the Proxy
-			opts.setProxy(proxy);
-
-			driver = new ChromeDriver(opts);
-		}
-
-		return driver;
+		
+		return setupChromeOptions(opts);
 	}
-
+	
 	public void stopRecordingAndCreateTST(String testName) {
 		Boolean sessionStopped = stopSession();
 		if (sessionStopped) {
@@ -133,6 +114,24 @@ public class ParasoftRecorder {
 		this.recordingProxyPort = port;
 	}
 
+	private ChromeOptions setupChromeOptions(ChromeOptions opts) {
+		// Setup Chrome Driver
+		if (this.recordingProxyPort.isEmpty() || this.recordingSessionId.isEmpty()) {
+			log.error("recording session has a problem, id or proxy port is empty - returning normal ChromeDriver");
+		} else {
+			// initialize the proxy with the proxy port returned by the Parasoft Recorder API
+			Proxy proxy = new Proxy();
+			proxy.setHttpProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy http connections
+			proxy.setSslProxy(RECORDER_HOST + ":" + recordingProxyPort); // proxy https connections
+			proxy.setNoProxy("<-loopback>"); // override proxying localhost connections
+			
+			// tell Selenium to set the UI to use the Proxy
+			opts.setProxy(proxy);
+		}
+
+		return opts;
+	}
+	
 	private Boolean isSessionsEmpty() {
 		Boolean isEmpty = false;
 

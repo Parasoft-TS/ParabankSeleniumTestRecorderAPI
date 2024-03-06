@@ -23,8 +23,8 @@ public class EndToEndTest {
 	 * command line or use System.setProperty("BASE_URL", "http://localhost:8080")
 	 * to change base URL at run time.
 	 */
-	private static final String BASE_URL = "http://localhost:8092";
-	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v116)\\chromedriver.exe";
+	private static final String BASE_URL = "http://localhost:4040";
+	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v119)\\chromedriver-win64\\chromedriver.exe";
 
 	private WebDriver driver;
 

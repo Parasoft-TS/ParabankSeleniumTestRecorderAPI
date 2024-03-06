@@ -14,6 +14,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
 public class EndToEndTest_WithRecorder {
@@ -23,8 +24,8 @@ public class EndToEndTest_WithRecorder {
 	 * command line or use System.setProperty("BASE_URL", "http://localhost:8080")
 	 * to change base URL at run time.
 	 */
-	private static final String BASE_URL = "http://localhost:8092";
-	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v116)\\chromedriver.exe";
+	private static final String BASE_URL = "http://localhost:4040";
+	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v122)\\chromedriver-win64\\chromedriver.exe";
 
 	private ParasoftRecorder recorder;
 	private WebDriver driver;
@@ -42,14 +43,15 @@ public class EndToEndTest_WithRecorder {
 		opts.addArguments("--enable-strict-powerful-feature-restrictions");
 		opts.addArguments("--remote-allow-origins=*");
 
-		driver = recorder.startRecordingAndSetupChromeDriver(opts);
-
+		opts = recorder.startRecording(opts);
+		
+		driver = new ChromeDriver(opts);
 		driver.manage().window().maximize();
 	}
 
 	@After
 	public void afterTest() {
-		recorder.stopRecordingAndCreateTST("com.parasoft.demo.pda.testFullFlowCampingSkin");
+		recorder.stopRecordingAndCreateTST("com.parasoft.demo.pda.EndToEndTest_testFullFlowCampingSkin_RecorderAPI");
 
 		if (driver != null) {
 			driver.quit();
