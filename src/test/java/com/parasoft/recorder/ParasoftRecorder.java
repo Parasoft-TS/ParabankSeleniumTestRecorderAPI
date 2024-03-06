@@ -130,6 +130,7 @@ public class ParasoftRecorder {
 		return opts;
 	}
 	
+	// Calling GET /api/v1/sessions and checking for 200 response
 	private Boolean isSessionsEmpty() {
 		Boolean isEmpty = false;
 
@@ -187,6 +188,7 @@ public class ParasoftRecorder {
 		return isEmpty;
 	}
 
+	// Calling POST /api/v1/sessions to start a session and retrieve the recordingSessionId and recordingProxyPort
 	private Boolean startNewSession() {
 		Boolean sessionStarted = false;
 		JsonObject responseObject = null;
@@ -259,6 +261,7 @@ public class ParasoftRecorder {
 		return sessionStarted;
 	}
 
+	// Calling PUT /api/v1/sessions/{recordingSessionId} to stop the recording session
 	private Boolean stopSession() {
 		Boolean isStopped = false;
 
@@ -310,6 +313,7 @@ public class ParasoftRecorder {
 		return isStopped;
 	}
 
+	// Calling POST /api/v1/sessions/{recordingSessionId}/tsts to send recorded HTTP traffic to SOAtest for API test creation
 	private Boolean sendTrafficToSOAtest(String testName) {
 		Boolean success = false;
 
@@ -372,6 +376,7 @@ public class ParasoftRecorder {
 		return success;
 	}
 
+	// Calling DELETE /api/v1/sessions/{recordingSessionId} to end recording session
 	private Boolean endRecordingSession() {
 		Boolean isEnded = false;
 
