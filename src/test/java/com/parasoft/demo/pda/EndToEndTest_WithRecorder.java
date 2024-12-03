@@ -8,15 +8,18 @@ import com.parasoft.demo.pda.page.HomePage;
 import com.parasoft.demo.pda.page.OrderWizardPage;
 import com.parasoft.demo.pda.page.OrdersPage;
 import com.parasoft.demo.pda.page.LoginPage;
-import com.parasoft.recorder.ParasoftRecorder;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.ExtensionContext;
+
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
+@ExtendWith(com.parasoft.recorder.ParasoftRecorder.class)
 public class EndToEndTest_WithRecorder {
 
 	/**
@@ -25,34 +28,32 @@ public class EndToEndTest_WithRecorder {
 	 * to change base URL at run time.
 	 */
 	private static final String BASE_URL = "http://localhost:4040";
-	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v122)\\chromedriver-win64\\chromedriver.exe";
+	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v129)\\chromedriver.exe";
 
-	private ParasoftRecorder recorder;
 	private WebDriver driver;
-
-	@Before
-	public void beforeTest() {
+	
+	@BeforeEach
+	public void beforeTest(ExtensionContext context) {
 		System.setProperty("webdriver.chrome.driver", CHROME_DRIVER);
 
-		recorder = new ParasoftRecorder();
-
-		ChromeOptions opts = new ChromeOptions();
+		ChromeOptions opts = (ChromeOptions)context.getStore(ExtensionContext.Namespace.GLOBAL).get("opts");
+		
+		if (opts == null) {
+            throw new IllegalStateException("ChromeOptions not found in context");
+        }
+		
 		opts.addArguments("--start-maximized");
 		opts.addArguments("--disable-geolocation");
 		opts.addArguments("--incognito");
 		opts.addArguments("--enable-strict-powerful-feature-restrictions");
 		opts.addArguments("--remote-allow-origins=*");
-
-		opts = recorder.startRecording(opts);
 		
 		driver = new ChromeDriver(opts);
 		driver.manage().window().maximize();
 	}
 
-	@After
+	@AfterEach
 	public void afterTest() {
-		recorder.stopRecordingAndCreateTST("com.parasoft.demo.pda.EndToEndTest_testFullFlowCampingSkin_RecorderAPI");
-
 		if (driver != null) {
 			driver.quit();
 		}

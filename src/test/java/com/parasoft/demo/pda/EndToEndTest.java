@@ -9,12 +9,14 @@ import com.parasoft.demo.pda.page.OrderWizardPage;
 import com.parasoft.demo.pda.page.OrdersPage;
 import com.parasoft.demo.pda.page.LoginPage;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+
 
 public class EndToEndTest {
 
@@ -24,11 +26,11 @@ public class EndToEndTest {
 	 * to change base URL at run time.
 	 */
 	private static final String BASE_URL = "http://localhost:4040";
-	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v119)\\chromedriver-win64\\chromedriver.exe";
+	private static final String CHROME_DRIVER = "C:\\Users\\whaaker\\Downloads\\SOAVirt\\Extensions\\chromedriver_win64_(v129)\\chromedriver.exe";
 
 	private WebDriver driver;
 
-	@Before
+	@BeforeEach
 	public void beforeTest() {
 		System.setProperty("webdriver.chrome.driver", CHROME_DRIVER);
 
@@ -43,7 +45,7 @@ public class EndToEndTest {
 		driver.manage().window().maximize();
 	}
 
-	@After
+	@AfterEach
 	public void afterTest() {
 		if (driver != null) {
 			driver.quit();

@@ -1,26 +1,22 @@
 package com.parasoft.recorder;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.api.extension.TestWatcher;
 
-import org.apache.hc.client5.http.classic.methods.HttpDelete;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.classic.methods.HttpPut;
-import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.HttpEntity;
-import org.apache.hc.core5.http.ParseException;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.apache.hc.core5.http.io.entity.StringEntity;
+import java.nio.charset.StandardCharsets;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeOptions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,31 +24,31 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-public class ParasoftRecorder {
+public class ParasoftRecorder implements BeforeEachCallback, AfterEachCallback, TestWatcher, ParameterResolver {
 
 	private static final Logger log = LoggerFactory.getLogger(ParasoftRecorder.class);
 
-	private String SOATEST_HOST = ""; // = "localhost";
-	private String SOATEST_PORT = ""; // = "9080";
-	private String RECORDER_HOST = ""; // = "localhost";
-	private String RECORDER_BASE_URL = ""; // = "http://"+RECORDER_HOST+":"+"40090";
+	private static String SOATEST_HOST = ""; // = "localhost";
+	private static String SOATEST_PORT = ""; // = "9080";
+	private static String RECORDER_HOST = ""; // = "localhost";
+	private static String RECORDER_PORT = ""; // = "40090";
+	private static String RECORDER_BASE_URL = ""; // = "http://"+RECORDER_HOST+":"+RECORDER_PORT;
 
 	private String recordingProxyPort = "";
 	private String recordingSessionId = "";
 
-	public ParasoftRecorder(String soatestHost, String soatestPort, String recorderHost, String recorderPort) {
-		this.SOATEST_HOST = soatestHost;
-		this.SOATEST_PORT = soatestPort;
-		this.RECORDER_HOST = recorderHost;
-		this.RECORDER_BASE_URL = "http://" + recorderHost + ":" + recorderPort;
+	static {
+		SOATEST_HOST = System.getProperty("SOATEST_HOST","localhost");
+		SOATEST_PORT = System.getProperty("SOATEST_PORT","9080");
+		RECORDER_HOST = System.getProperty("localhost","localhost");
+		RECORDER_PORT = System.getProperty("RECORDER_PORT","40090");
+		RECORDER_BASE_URL = "http://"+RECORDER_HOST+":"+RECORDER_PORT;
 	}
-
-	// use with localhost default ports execution
-	public ParasoftRecorder() {
-		this("localhost", "9080", "localhost", "40090");
-	}
-
-	public ChromeOptions startRecording(ChromeOptions opts) {
+	
+	@Override
+	public void beforeEach(ExtensionContext context) throws Exception {
+		ChromeOptions opts = new ChromeOptions();
+		
 		// Start Recording Session
 		Boolean sessionsEmpty = isSessionsEmpty();
 		if (sessionsEmpty) {
@@ -62,15 +58,19 @@ public class ParasoftRecorder {
 			}
 		} else {
 			log.error("sessions were not empty, recording did not start");
-		}
+		}		
+		opts = setupChromeOptions(opts);
 		
-		return setupChromeOptions(opts);
+		// Store ChromeOptions in ExtensionContext store
+		context.getStore(ExtensionContext.Namespace.GLOBAL).put("opts",opts);
 	}
 	
-	public void stopRecordingAndCreateTST(String testName) {
+	@Override
+	public void afterEach(ExtensionContext context) {
+		String testId = context.getTestClass().get().getName() + '#' + context.getTestMethod().get().getName();
 		Boolean sessionStopped = stopSession();
 		if (sessionStopped) {
-			Boolean trafficSent = sendTrafficToSOAtest(testName);
+			Boolean trafficSent = sendTrafficToSOAtest(testId);
 			if (trafficSent) {
 				Boolean sessionEnded = endRecordingSession();
 				if (!sessionEnded) {
@@ -84,18 +84,18 @@ public class ParasoftRecorder {
 		}
 	}
 
-	public String getSOAtestHost() {
-		return this.SOATEST_HOST;
-	}
+    @Override
+    public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+        // We want to inject ExtensionContext into the test class' beforeEach method
+        return parameterContext.getParameter().getType().equals(ExtensionContext.class);
+    }
 
-	public String getSOAtestPort() {
-		return this.SOATEST_PORT;
-	}
-
-	public String getRecorderBaseURL() {
-		return this.RECORDER_BASE_URL;
-	}
-
+    @Override
+    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+        // Return the ExtensionContext for injection
+        return extensionContext;
+    }
+	
 	public String getRecordingSessionId() {
 		return this.recordingSessionId;
 	}
@@ -132,296 +132,205 @@ public class ParasoftRecorder {
 	
 	// Calling GET /api/v1/sessions and checking for 200 response
 	private Boolean isSessionsEmpty() {
-		Boolean isEmpty = false;
-
 		log.info("checking for empty sessions");
 
-		// Check to make sure no active sessions are open
-		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-			CloseableHttpResponse response = null;
-			HttpGet httpGet = new HttpGet(RECORDER_BASE_URL + "/api/v1/sessions");
-			RequestConfig.Builder requestConfig = RequestConfig.custom();
-			requestConfig.setConnectionRequestTimeout(30L, TimeUnit.SECONDS);
-			httpGet.setConfig(requestConfig.build());
+		try {
+			// Create HttpClient
+			HttpClient client = HttpClient.newBuilder()
+					.connectTimeout(java.time.Duration.ofSeconds(30))
+					.build();
+			
+			// Build the HTTP GET request
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create(RECORDER_BASE_URL + "/api/v1/sessions"))
+					.timeout(java.time.Duration.ofSeconds(30))
+					.GET()
+					.build();
+			
+			// Send the request and get the response
+			HttpResponse<String> response = client.send(request,  HttpResponse.BodyHandlers.ofString());
+			
+			// Check response
+			if (response.statusCode() == 200) {
+				log.debug("GET /api/v1/sessions - 200 response");
+				
+				// Parse the JSON response
+                JsonObject jsonObject = JsonParser.parseString(response.body()).getAsJsonObject();
+                log.debug("Response body: {}", response.body());
 
-			try {
-				response = httpClient.execute(httpGet);
-
-				if (String.valueOf(response.getCode()).equals("200")) {
-					log.debug("GET /api/v1/sessions - 200 response");
-					HttpEntity entity = response.getEntity();
-					JsonObject object = (JsonObject) JsonParser
-							.parseReader(new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8));
-
-					log.debug("GET /api/v1/sessions - response");
-					log.debug(object.toString());
-
-					// check if sessions response is empty
-					JsonArray sessions = object.getAsJsonArray("sessions");
-					if (sessions.isEmpty())
-						isEmpty = true;
-
-					EntityUtils.consume(entity);
-				} else {
-					log.error("GET /api/v1/sessions - " + String.valueOf(response.getCode()) + " response");
-					log.error(response.toString());
-
-					HttpEntity entity = response.getEntity();
-					String responseString = EntityUtils.toString(entity);
-					log.error(responseString);
-				}
-			} catch (Exception e) {
-				log.error("could not execute GET /api/v1/sessions", e);
-			} finally {
-				if (response != null) {
-					try {
-						response.close();
-					} catch (IOException e) {
-						log.error("could not close CloseableHttpResponse", e);
-					}
-				}
+                JsonArray sessions = jsonObject.getAsJsonArray("sessions");
+                return sessions.isEmpty();
+			} else {
+				log.error("GET /api/v1/sessions - Unexpected response status: {}", response.statusCode());
+                log.error("Response body: {}", response.body());
 			}
-		} catch (IOException e1) {
-			log.error("could not create CloseableHttpClient", e1);
-		}
 
-		return isEmpty;
+		} catch (Exception e) {
+			log.error("could not execute GET /api/v1/sessions", e);
+		}
+			
+		return false;
 	}
 
 	// Calling POST /api/v1/sessions to start a session and retrieve the recordingSessionId and recordingProxyPort
 	private Boolean startNewSession() {
-		Boolean sessionStarted = false;
-		JsonObject responseObject = null;
-
 		log.info("starting new session");
 
 		// Start new session
-		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-			CloseableHttpResponse response = null;
-			HttpPost httpPost = new HttpPost(RECORDER_BASE_URL + "/api/v1/sessions");
-			RequestConfig.Builder requestConfig = RequestConfig.custom();
-			requestConfig.setConnectionRequestTimeout(30L, TimeUnit.SECONDS);
-			httpPost.setConfig(requestConfig.build());
+		try {
+			// Create HttpClient
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(30))
+                    .build();
 
-			StringEntity requestEntity = new StringEntity("{\"soavirt\":{\"host\":\"" + SOATEST_HOST + "\",\"port\":\""
-					+ SOATEST_PORT + "\",\"secure\":false}}", ContentType.APPLICATION_JSON);
-			httpPost.setEntity(requestEntity);
+            // Construct JSON request body
+            String requestBody = String.format(
+                "{\"soavirt\":{\"host\":\"%s\",\"port\":\"%s\",\"secure\":false}}",
+                SOATEST_HOST, SOATEST_PORT
+            );
+            
+            // Build HTTP POST request
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(RECORDER_BASE_URL + "/api/v1/sessions"))
+                    .header("Content-Type", "application/json")
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                    .build();
+            
+            // Send the request and handle response
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-			String request = "";
-			try {
-				log.debug("POST /api/v1/sessions - request body");
-				request = EntityUtils.toString(requestEntity);
-				log.debug(request);
-			} catch (ParseException e1) {
-				log.error("could not parse request", e1);
-			}
+            if (response.statusCode() == 200) {
+                log.debug("POST /api/v1/sessions - 200 response");
 
-			try {
-				response = httpClient.execute(httpPost);
+                // Parse the JSON response
+                JsonObject responseObject = JsonParser.parseString(response.body()).getAsJsonObject();
+                log.debug("Response body: {}", responseObject);
 
-				if (String.valueOf(response.getCode()).equals("200")) {
-					log.debug("POST /api/v1/sessions - 200 response");
-					sessionStarted = true;
+                // Set session ID and proxy port
+                setRecordingSessionId(responseObject.get("id").getAsString());
+                setRecordingProxyPort(responseObject.getAsJsonObject("proxySettings").get("port").getAsString());
 
-					HttpEntity entity = response.getEntity();
-					responseObject = (JsonObject) JsonParser
-							.parseReader(new InputStreamReader(entity.getContent(), StandardCharsets.UTF_8));
-
-					// set sessionId and proxyPort
-					setRecordingSessionId(responseObject.get("id").getAsString());
-					setRecordingProxyPort(responseObject.getAsJsonObject("proxySettings").get("port").getAsString());
-
-					log.debug("POST /api/v1/sessions response");
-					log.debug(responseObject.toString());
-
-					EntityUtils.consume(entity);
-				} else {
-					log.error("POST /api/v1/sessions - " + String.valueOf(response.getCode()) + " response");
-					log.error(response.toString());
-
-					HttpEntity entity = response.getEntity();
-					String responseString = EntityUtils.toString(entity);
-					log.error(responseString);
-				}
-			} catch (Exception e) {
-				log.error("could not execute POST /api/v1/sessions", e);
-			} finally {
-				if (response != null) {
-					try {
-						response.close();
-					} catch (IOException e) {
-						log.error("could not close CloseableHttpResponse", e);
-					}
-				}
-			}
-		} catch (IOException e1) {
-			log.error("could not create CloseableHttpClient", e1);
+                return true;
+            } else {
+                log.error("POST /api/v1/sessions - Unexpected response status: {}", response.statusCode());
+                log.error("Response body: {}", response.body());
+            }
+		} catch (Exception e) {
+			log.error("Error during POST /api/v1/sessions", e);
 		}
-
-		return sessionStarted;
+		
+		return false;
 	}
 
 	// Calling PUT /api/v1/sessions/{recordingSessionId} to stop the recording session
 	private Boolean stopSession() {
-		Boolean isStopped = false;
-
 		log.info("stopping session");
 
-		// Put call that stops the recording session
-		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-			CloseableHttpResponse response = null;
-			HttpPut httpPut = new HttpPut(RECORDER_BASE_URL + "/api/v1/sessions/" + this.recordingSessionId);
-			RequestConfig.Builder requestConfig = RequestConfig.custom();
-			requestConfig.setConnectionRequestTimeout(30L, TimeUnit.SECONDS);
-			httpPut.setConfig(requestConfig.build());
+		try {
+            // Create HttpClient
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(30))
+                    .build();
 
-			StringEntity requestEntity = new StringEntity("{\"state\":\"stopped\"}", ContentType.APPLICATION_JSON);
-			httpPut.setEntity(requestEntity);
+            // Construct JSON request body
+            String requestBody = "{\"state\":\"stopped\"}";
 
-			try {
-				response = httpClient.execute(httpPut);
+            // Build HTTP PUT request
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(RECORDER_BASE_URL + "/api/v1/sessions/" + recordingSessionId))
+                    .header("Content-Type", "application/json")
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .PUT(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                    .build();
 
-				if (String.valueOf(response.getCode()).equals("200")) {
-					isStopped = true;
-					log.debug("PUT /api/v1/sessions/" + this.recordingSessionId + " - 200 response");
-				} else {
-					log.error("PUT /api/v1/sessions/" + this.recordingSessionId + " - "
-							+ String.valueOf(response.getCode()) + " response");
-					log.error(response.toString());
+            // Send the request and handle response
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-					HttpEntity entity = response.getEntity();
-					String responseString = EntityUtils.toString(entity);
-					log.error(responseString);
-				}
+            if (response.statusCode() == 200) {
+                log.debug("PUT /api/v1/sessions/{} - 200 response", recordingSessionId);
+                return true;
+            } else {
+                log.error("PUT /api/v1/sessions/{} - Unexpected response status: {}", recordingSessionId, response.statusCode());
+                log.error("Response body: {}", response.body());
+            }
+        } catch (Exception e) {
+            log.error("Error during PUT /api/v1/sessions/" + recordingSessionId, e);
+        }
 
-				EntityUtils.consume(response.getEntity());
-			} catch (Exception e) {
-				log.error("could not execute PUT /api/v1/sessions/" + this.recordingSessionId, e);
-			} finally {
-				if (response != null) {
-					try {
-						response.close();
-					} catch (IOException e) {
-						log.error("could not close CloseableHttpResponse", e);
-					}
-				}
-			}
-		} catch (IOException e1) {
-			log.error("could not create CloseableHttpClient", e1);
-		}
-
-		return isStopped;
+        return false;
 	}
 
 	// Calling POST /api/v1/sessions/{recordingSessionId}/tsts to send recorded HTTP traffic to SOAtest for API test creation
 	private Boolean sendTrafficToSOAtest(String testName) {
-		Boolean success = false;
-
 		log.info("sending API traffic to SOAtest");
 
-		// Post call that sends recorded API traffic to SOAtest Server
-		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-			CloseableHttpResponse response = null;
-			HttpPost httpPost = new HttpPost(
-					RECORDER_BASE_URL + "/api/v1/sessions/" + this.recordingSessionId + "/tsts");
-			RequestConfig.Builder requestConfig = RequestConfig.custom();
-			requestConfig.setConnectionRequestTimeout(30L, TimeUnit.SECONDS);
-			httpPost.setConfig(requestConfig.build());
+        try {
+            // Create HttpClient
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(30))
+                    .build();
 
-			StringEntity requestEntity = new StringEntity("{" + "\"name\":\"" + testName + "\"" + "}",
-					ContentType.APPLICATION_JSON);
-			httpPost.setEntity(requestEntity);
+            // Construct JSON request body
+            String requestBody = String.format("{\"name\":\"%s\"}", testName);
 
-			String request = "";
-			try {
-				log.debug("POST /api/v1/sessions/" + this.recordingSessionId + "/tsts - request body");
-				request = EntityUtils.toString(requestEntity);
-				log.debug(request);
-			} catch (ParseException e1) {
-				log.error("could not parse request", e1);
-			}
+            // Build HTTP POST request
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(RECORDER_BASE_URL + "/api/v1/sessions/" + recordingSessionId + "/tsts"))
+                    .header("Content-Type", "application/json")
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                    .build();
 
-			try {
-				response = httpClient.execute(httpPost);
+            // Send the request and handle response
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-				if (String.valueOf(response.getCode()).equals("200")) {
-					success = true;
-					log.debug("POST /api/v1/sessions/" + this.recordingSessionId + "/tsts - 200 response");
-				} else {
-					log.error("POST /api/v1/sessions/" + this.recordingSessionId + "/tsts - "
-							+ String.valueOf(response.getCode()) + " response");
-					log.error(response.toString());
+            if (response.statusCode() == 200) {
+                log.debug("POST /api/v1/sessions/{}/tsts - 200 response", recordingSessionId);
+                return true;
+            } else {
+                log.error("POST /api/v1/sessions/{}/tsts - Unexpected response status: {}", recordingSessionId, response.statusCode());
+                log.error("Response body: {}", response.body());
+            }
+        } catch (Exception e) {
+            log.error("Error during POST /api/v1/sessions/" + recordingSessionId + "/tsts", e);
+        }
 
-					HttpEntity entity = response.getEntity();
-					String responseString = EntityUtils.toString(entity);
-					log.error(responseString);
-				}
-
-				EntityUtils.consume(response.getEntity());
-			} catch (Exception e) {
-				log.error("could not execute POST /api/v1/sessions/" + this.recordingSessionId + "/tsts", e);
-			} finally {
-				if (response != null) {
-					try {
-						response.close();
-					} catch (IOException e) {
-						log.error("could not close CloseableHttpResponse", e);
-					}
-				}
-			}
-		} catch (IOException e1) {
-			log.error("could not create CloseableHttpClient", e1);
-		}
-
-		return success;
+        return false;
 	}
 
 	// Calling DELETE /api/v1/sessions/{recordingSessionId} to end recording session
 	private Boolean endRecordingSession() {
-		Boolean isEnded = false;
-
 		log.info("ending recording session");
 
 		// Delete call that ends the recording session
-		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-			CloseableHttpResponse response = null;
-			HttpDelete httpDelete = new HttpDelete(RECORDER_BASE_URL + "/api/v1/sessions/" + this.recordingSessionId);
-			RequestConfig.Builder requestConfig = RequestConfig.custom();
-			requestConfig.setConnectionRequestTimeout(30L, TimeUnit.SECONDS);
-			httpDelete.setConfig(requestConfig.build());
+		try {
+            // Create HttpClient
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(30))
+                    .build();
 
-			try {
-				response = httpClient.execute(httpDelete);
+            // Build HTTP DELETE request
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(RECORDER_BASE_URL + "/api/v1/sessions/" + recordingSessionId))
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .DELETE()
+                    .build();
 
-				if (String.valueOf(response.getCode()).equals("200")) {
-					isEnded = true;
-					log.debug("DELETE /api/v1/sessions/" + this.recordingSessionId + " - 200 response");
-				} else {
-					log.error("DELETE /api/v1/sessions/" + this.recordingSessionId + " - "
-							+ String.valueOf(response.getCode()) + " response");
-					log.error(response.toString());
+            // Send the request and handle response
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-					HttpEntity entity = response.getEntity();
-					String responseString = EntityUtils.toString(entity);
-					log.error(responseString);
-				}
+            if (response.statusCode() == 200) {
+                log.debug("DELETE /api/v1/sessions/{} - 200 response", recordingSessionId);
+                return true;
+            } else {
+                log.error("DELETE /api/v1/sessions/{} - Unexpected response status: {}", recordingSessionId, response.statusCode());
+                log.error("Response body: {}", response.body());
+            }
+        } catch (Exception e) {
+            log.error("Error during DELETE /api/v1/sessions/" + recordingSessionId, e);
+        }
 
-				EntityUtils.consume(response.getEntity());
-			} catch (Exception e) {
-				log.error("could not execute DELETE /api/v1/sessions/" + this.recordingSessionId, e);
-			} finally {
-				if (response != null) {
-					try {
-						response.close();
-					} catch (IOException e) {
-						log.error("could not close CloseableHttpResponse", e);
-					}
-				}
-			}
-		} catch (IOException e1) {
-			log.error("could not create CloseableHttpClient", e1);
-		}
-
-		return isEnded;
+        return false;
 	}
 }
