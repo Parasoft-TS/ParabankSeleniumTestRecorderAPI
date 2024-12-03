@@ -15,4 +15,4 @@ Example Java class of how to integrate Parasoft Recorder REST API with any test 
 - See com.parasoft.recorder.ParasoftRecorder.java
 
 For more information about the Parasoft Recorder:
-- See https://docs.parasoft.com/display/SOA20231/Getting+Started+with+SOAtest+Smart+API+Test+Generator
+- See https://docs.parasoft.com/display/SOA20242/Getting+Started+with+SOAtest+Smart+API+Test+Generator
