@@ -115,7 +115,7 @@ public class ParasoftRecorder implements BeforeEachCallback, AfterEachCallback, 
 	private ChromeOptions setupChromeOptions(ChromeOptions opts) {
 		// Setup Chrome Driver
 		if (this.recordingProxyPort.isEmpty() || this.recordingSessionId.isEmpty()) {
-			log.error("recording session has a problem, id or proxy port is empty - returning normal ChromeDriver");
+			log.error("recording session has a problem, id: <{}> or proxy port: <{}> is empty - returning normal ChromeDriver",this.recordingSessionId,this.recordingProxyPort);
 		} else {
 			// initialize the proxy with the proxy port returned by the Parasoft Recorder API
 			Proxy proxy = new Proxy();
