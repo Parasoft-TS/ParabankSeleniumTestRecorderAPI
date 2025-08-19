@@ -1,3 +1,18 @@
 /bin/
+# Maven
 /target/
-*.classpath
+
+# Eclipse files
+.project
+.classpath
+.settings/
+
+# Java compiled files
+*.class
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
