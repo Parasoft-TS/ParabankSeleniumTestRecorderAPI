@@ -20,7 +20,6 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
-@ExtendWith(com.parabank.recorder.ParasoftRecorder.class)
 public class ParabankTest {
 
 	/**
@@ -33,13 +32,8 @@ public class ParabankTest {
 	private WebDriver driver;
 
 	@BeforeEach
-	public void beforeTest(ExtensionContext context) {
-		ChromeOptions opts = (ChromeOptions)context.getStore(ExtensionContext.Namespace.GLOBAL).get("opts");
-		
-		if (opts == null) {
-            throw new IllegalStateException("ChromeOptions not found in context");
-        }
-		
+	public void beforeTest() {
+		ChromeOptions opts = new ChromeOptions();
 		Map<String, Object> prefs = new HashMap<String, Object>();
 		prefs.put("profile.managed_default_content_settings.geolocation", 2);
 		prefs.put("profile.default_content_setting_values.notifications", 2);
