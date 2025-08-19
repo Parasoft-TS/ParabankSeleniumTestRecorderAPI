@@ -41,6 +41,11 @@ public class ParabankTest {
 		opts.addArguments("--start-maximized");
 		opts.addArguments("--incognito");
 		opts.addArguments("--enable-strict-powerful-feature-restrictions");
+                opts.addArguments("--headless");       
+                opts.addArguments("--no-sandbox");     
+                opts.addArguments("--disable-dev-shm-usage");
+                opts.addArguments("--disable-gpu");   
+
 		driver = new ChromeDriver(opts);
 		driver.manage().window().maximize();
 	}
