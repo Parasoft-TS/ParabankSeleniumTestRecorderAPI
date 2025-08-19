@@ -19,6 +19,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import io.github.bonigarcia.wdm.WebDriverManager;
+import java.io.IOException;
 
 @ExtendWith(com.parabank.recorder.ParasoftRecorder.class)
 public class ParabankTest {
@@ -33,7 +37,7 @@ public class ParabankTest {
 	private WebDriver driver;
 
 	@BeforeEach
-	public void beforeTest(ExtensionContext context) {
+	public void beforeTest(ExtensionContext context) throws IOException {
 		ChromeOptions opts = (ChromeOptions)context.getStore(ExtensionContext.Namespace.GLOBAL).get("opts");
 		
 		if (opts == null) {
@@ -47,6 +51,13 @@ public class ParabankTest {
 		opts.addArguments("--start-maximized");
 		opts.addArguments("--incognito");
 		opts.addArguments("--enable-strict-powerful-feature-restrictions");
+		opts.addArguments("--headless");       
+        opts.addArguments("--no-sandbox");     
+        opts.addArguments("--disable-dev-shm-usage");
+        opts.addArguments("--disable-gpu");
+        Path userDataDir = Files.createTempDirectory("chrome-user-data");
+        opts.addArguments("--user-data-dir=" + userDataDir.toAbsolutePath().toString());   
+        WebDriverManager.chromedriver().setup();
 		driver = new ChromeDriver(opts);
 		driver.manage().window().maximize();
 	}
