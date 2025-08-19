@@ -19,6 +19,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import io.github.bonigarcia.wdm.WebDriverManager;
+import java.io.IOException;
 
 public class ParabankTest {
 
@@ -32,7 +36,7 @@ public class ParabankTest {
 	private WebDriver driver;
 
 	@BeforeEach
-	public void beforeTest() {
+	public void beforeTest() throws IOException {
 		ChromeOptions opts = new ChromeOptions();
 		Map<String, Object> prefs = new HashMap<String, Object>();
 		prefs.put("profile.managed_default_content_settings.geolocation", 2);
@@ -44,7 +48,10 @@ public class ParabankTest {
                 opts.addArguments("--headless");       
                 opts.addArguments("--no-sandbox");     
                 opts.addArguments("--disable-dev-shm-usage");
-                opts.addArguments("--disable-gpu");   
+                opts.addArguments("--disable-gpu");
+                Path userDataDir = Files.createTempDirectory("chrome-user-data");
+                opts.addArguments("--user-data-dir=" + userDataDir.toAbsolutePath().toString());   
+                WebDriverManager.chromedriver().setup();
 
 		driver = new ChromeDriver(opts);
 		driver.manage().window().maximize();
